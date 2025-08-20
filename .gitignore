@@ -1,0 +1,26 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# IDE settings
+.vscode/
+.idea/
+
+# Data (don’t upload your big dataset)
+data/
+
+# Archives
+*.zip
+*.tar.gz
+
+# Checkpoints (skip large temp weights)
+*.ckpt
+*.pth
+
+# OS junk
+.DS_Store
+Thumbs.db
+
