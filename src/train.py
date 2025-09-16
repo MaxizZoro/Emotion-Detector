@@ -1,82 +1,38 @@
 import tensorflow as tf
-import os
-import matplotlib.pyplot as plt
-from models.model import build_tiny_cnn
+import cv2
+import numpy as np
 
-# Dataset parameters
-data_dir = "../data/FER-2013"
-batch_size = 32
-img_size = (48, 48)
-epochs = 100
+# Uncomment the model you want to use:
+# model = tf.keras.models.load_model("../models/mobilenetv2_model.h5")
+model = tf.keras.models.load_model("../models/tiny_cnn_model.h5")
 
-# Load datasets
-train_ds = tf.keras.utils.image_dataset_from_directory(
-    os.path.join(data_dir, "train"),
-    seed=123,
-    image_size=img_size,
-    batch_size=batch_size
-)
+class_names = ['angry', 'disgust', 'fear', 'happy', 'neutral', 'sad', 'surprise']
 
-test_ds = tf.keras.utils.image_dataset_from_directory(
-    os.path.join(data_dir, "test"),
-    seed=123,
-    image_size=img_size,
-    batch_size=batch_size
-)
+# Capture video from webcam
+cap = cv2.VideoCapture(0)
 
-class_names = train_ds.class_names
-num_classes = len(class_names)
+while True:
+    ret, frame = cap.read()
+    if not ret:
+        break
 
-# Normalize to [0, 1]
-normalization_layer = tf.keras.layers.Rescaling(1./255)
-train_ds = train_ds.map(lambda x, y: (normalization_layer(x), y))
-test_ds = test_ds.map(lambda x, y: (normalization_layer(x), y))
+    # Preprocessing the frame
+    img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    img = cv2.resize(img, (48, 48))
+    img = img / 255.0
+    img = np.expand_dims(img, axis=0).astype(np.float32)
 
-# Prefetch
-AUTOTUNE = tf.data.AUTOTUNE
-train_ds = train_ds.cache().shuffle(1000).prefetch(buffer_size=AUTOTUNE)
-test_ds = test_ds.cache().prefetch(buffer_size=AUTOTUNE)
+    # Predicting the emotion
+    predictions = model.predict(img)
+    score = tf.nn.softmax(predictions[0])
+    predicted_class = class_names[np.argmax(score)]
 
-# Build tiny CNN model
-model = build_tiny_cnn(input_shape=(48, 48, 3), num_classes=num_classes)
+    # Display the prediction on the frame
+    cv2.putText(frame, predicted_class, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+    cv2.imshow('Emotion Recognition', frame)
 
-# Compile (already compiled in build_tiny_cnn, but safe to recompile)
-model.compile(
-    optimizer='adam',
-    loss='sparse_categorical_crossentropy',
-    metrics=['accuracy']
-)
+    if cv2.waitKey(1) & 0xFF == ord('q'):
+        break
 
-# Train
-history = model.fit(
-    train_ds,
-    validation_data=test_ds,
-    epochs=epochs
-)
-
-# Save
-model.save("../models/tiny_cnn_model.h5")
-print("Model saved to models/tiny_cnn_model.h5")
-
-# Plot accuracy and loss
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
-loss = history.history['loss']
-val_loss = history.history['val_loss']
-
-plt.figure(figsize=(12, 5))
-
-plt.subplot(1, 2, 1)
-plt.plot(acc, label="Training Accuracy")
-plt.plot(val_acc, label="Validation Accuracy")
-plt.legend()
-plt.title("Tiny CNN Accuracy")
-
-plt.subplot(1, 2, 2)
-plt.plot(loss, label="Training Loss")
-plt.plot(val_loss, label="Validation Loss")
-plt.legend()
-plt.title("Tiny CNN Loss")
-
-plt.tight_layout()
-plt.show()
+cap.release()
+cv2.destroyAllWindows()
