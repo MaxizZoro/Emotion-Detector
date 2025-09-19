@@ -47,12 +47,6 @@ python src/train.py
 
 Models will be saved in the `models/` directory.
 
-## Usage
-
-To evaluate a trained model:
-```bash
-python src/evaluate.py --model models/your_model.h5
-```
 
 ## Results
 
